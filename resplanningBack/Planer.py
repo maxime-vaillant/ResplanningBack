@@ -4,13 +4,13 @@ from pysat.solvers import Solver
 from . import helper
 
 class Planer:
-    def __init__(self, slots: List[int], people: List[int], on_call_times: List[str], planning: dict[dict[dict]], rules_by_person: List[Dict], rules_by_slot: List[Dict]):
+    def __init__(self, slots: List[int], people: List[int], on_call_times: List[int], planning: dict[dict[dict]], rules_by_person: List[Dict], rules_by_slot: List[Dict]):
         self.__slots_id = slots
         self.__slots = helper.get_max_list_int(slots)
         self.__people_id = people
         self.__people = helper.get_max_list_int(people)
         self.__on_call_times_id = on_call_times
-        self.__on_call_times = helper.get_max_list_str(on_call_times)
+        self.__on_call_times = helper.get_max_list_int(on_call_times)
         self.__rules_by_person = rules_by_person
         self.__rules_by_slot = rules_by_slot
         self.__planning = planning
@@ -62,12 +62,12 @@ class Planer:
 
     def __create_rule_on_cell_available(self, person_id: int, slot_id: int):
         vars = []
-        for on_call_time_id in self.__on_call_times:
+        for on_call_time_id in self.__on_call_times_id:
             vars.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
         self.__add_exact(vars, 1)
 
     def __create_rule_on_cell_unavailable(self, person_id: int, slot_id: int):
-        for on_call_time_id in self.__on_call_times:
+        for on_call_time_id in self.__on_call_times_id:
             self.__solver.add_clause([-self.__cell_to_variable(person_id, slot_id, on_call_time_id)])
 
     @staticmethod

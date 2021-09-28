@@ -2,13 +2,13 @@ from typing import List
 
 def parse_people(slots: List[int], people: List[int], rules_by_person: List[dict]) -> List[dict]:
     for rule in rules_by_person:
-        if rule['counter'] == 'all' and rule['slots'] and rule['slots'][0] == 'all':
+        if rule['counter'] == -1 and rule['slots'] and rule['slots'][0] == -1:
             rule['counter'] = len(slots)
-        elif rule['counter'] == 'all':
+        elif rule['counter'] == -1:
             rule['counter'] = len(rule['slots'])
-        if rule['people'] and rule['people'][0] == 'all':
+        if rule['people'] and rule['people'][0] == -1:
             rule['people'] = people
-        if rule['slots'] and rule['slots'][0] == 'all':
+        if rule['slots'] and rule['slots'][0] == -1:
             rule['slots'] = slots
     return rules_by_person
 
@@ -29,12 +29,3 @@ def get_max_list_int(id_list: List[int]):
         return 0
     else:
         return max(id_list) + 1
-
-def get_max_list_str(ids_list: List[str]):
-    max_list = 0
-    for ids_sublist in ids_list:
-        ids = ids_sublist.split('+')
-        for id_atom in ids:
-            if int(id_atom) > max_list:
-                max_list = int(id_atom)
-    return max_list + 1
