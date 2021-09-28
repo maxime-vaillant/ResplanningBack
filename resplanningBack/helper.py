@@ -14,13 +14,13 @@ def parse_people(slots: List[int], people: List[int], rules_by_person: List[dict
 
 def parse_slots(slots: List[int], people: List[int], rules_by_slot: List[dict]) -> List[dict]:
     for rule in rules_by_slot:
-        if rule['counter'] == 'all' and rule['people'] and rule['people'][0] == 'all':
+        if rule['counter'] == -1 and rule['people'] and rule['people'][0] == -1:
             rule['counter'] = len(people)
-        elif rule['counter'] == 'all':
+        elif rule['counter'] == -1:
             rule['counter'] = len(rule['people'])
-        if rule['people'] and rule['people'][0] == 'all':
+        if rule['people'] and rule['people'][0] == -1:
             rule['people'] = people
-        if rule['slots'] and rule['slots'][0] == 'all':
+        if rule['slots'] and rule['slots'][0] == -1:
             rule['slots'] = slots
         return rules_by_slot
 

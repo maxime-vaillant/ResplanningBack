@@ -115,7 +115,7 @@ class Planer:
     def __add_rules_on_planning(self):
         for person_id in self.__people_id:
             for slot_id in self.__slots_id:
-                on_call_time_key = self.__planning[str(person_id)][str(slot_id)]['onCallTime']
+                on_call_time_key = self.__planning[str(person_id)][str(slot_id)]['on_call_time']
                 if on_call_time_key is not None:
                     self.__solver.add_clause([self.__cell_to_variable(person_id, slot_id, on_call_time_key)])
 
@@ -130,7 +130,7 @@ class Planer:
         for var in model:
             if var > 0:
                 person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
-                self.__planning[str(person_id)][str(slot_id)]['onCallTime'] = on_call_time_id
+                self.__planning[str(person_id)][str(slot_id)]['on_call_time'] = on_call_time_id
         return self.__planning
 
     def __evaluate_model(self):
