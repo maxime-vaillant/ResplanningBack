@@ -5,11 +5,9 @@ from rest_framework.decorators import api_view
 from . import Planer as Pln
 from . import helper
 
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 def helloWorld(request):
-    if request.method == 'POST':
-        return JsonResponse({"message": "Hello world from POST"})
-    return JsonResponse({"message": "Hello, world!"})
+    return JsonResponse({"message": "Resplanning is online"})
 
 @api_view(['POST'])
 def generate(request):

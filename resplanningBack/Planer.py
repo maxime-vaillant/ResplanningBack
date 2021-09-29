@@ -96,7 +96,7 @@ class Planer:
         for slot_id in self.__slots_id:
             self.__clear_rule_vars(self.__rules_by_slot)
             for person_id in self.__people_id:
-                if self.__planning.get(str(person_id), None) and self.__planning[str(person_id)].get(str(slot_id), None) and self.__planning[str(person_id)][str(slot_id)].get('available', False):
+                if str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
                     self.__create_rule_on_cell_available(person_id, slot_id)
                 else:
                     self.__create_rule_on_cell_unavailable(person_id, slot_id)
@@ -118,9 +118,7 @@ class Planer:
                 on_call_time_key = None
                 row = self.__planning.get(str(person_id), None)
                 if row:
-                    cell = row.get(str(slot_id), None)
-                    if cell:
-                        on_call_time_key = cell.get('on_call_time', None)
+                    on_call_time_key = row.get(str(slot_id), None)
                 if on_call_time_key is not None:
                     self.__solver.add_clause([self.__cell_to_variable(person_id, slot_id, on_call_time_key)])
 
@@ -135,7 +133,7 @@ class Planer:
         for var in model:
             if var > 0:
                 person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
-                self.__planning[str(person_id)][str(slot_id)]['on_call_time'] = on_call_time_id
+                self.__planning[str(person_id)][str(slot_id)] = on_call_time_id
         return self.__planning
 
     def __evaluate_model(self):
