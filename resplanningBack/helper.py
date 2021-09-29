@@ -22,7 +22,7 @@ def parse_slots(slots: List[int], people: List[int], rules_by_slot: List[dict]) 
             rule['people'] = people
         if rule['slots'] and rule['slots'][0] == -1:
             rule['slots'] = slots
-        return rules_by_slot
+    return rules_by_slot
 
 def get_max_list_int(id_list: List[int]):
     if len(id_list) == 0:
