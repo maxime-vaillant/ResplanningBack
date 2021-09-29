@@ -118,7 +118,7 @@ class Planer:
                 on_call_time_key = None
                 row = self.__planning.get(str(person_id), None)
                 if row:
-                    cell = self.__planning.get(str(slot_id), None)
+                    cell = row.get(str(slot_id), None)
                     if cell:
                         on_call_time_key = cell.get('on_call_time', None)
                 if on_call_time_key is not None:
