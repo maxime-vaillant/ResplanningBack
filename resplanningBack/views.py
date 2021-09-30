@@ -6,8 +6,8 @@ from . import Planer as Pln
 from . import helper
 
 @api_view(['GET'])
-def helloWorld(request):
-    return JsonResponse({"message": "Resplanning is online"})
+def getDoc(request):
+    return HttpResponse("<a href='https://app.swaggerhub.com/apis-docs/maxime-vaillant/resplanning-api/1.0.0' target='_blank'>Documentation</a>")
 
 @api_view(['POST'])
 def generate(request):
