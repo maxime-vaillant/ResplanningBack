@@ -1,4 +1,5 @@
 from typing import List
+import pandas as pd
 
 from django.http import JsonResponse, HttpResponse
 from rest_framework.decorators import api_view
@@ -8,6 +9,37 @@ from . import helper
 @api_view(['GET'])
 def getDoc(request):
     return HttpResponse("<a href='https://app.swaggerhub.com/apis-docs/maxime-vaillant/resplanning-api/1.0.0' target='_blank'>Documentation</a>")
+
+@api_view(['POST'])
+def parseCsv(request):
+    try:
+        csv_file = request.data['file']
+        slots = []
+        people = []
+        slotCount = 0
+        personCount = 0
+        planning = {}
+        datas = pd.read_csv(csv_file)
+        for index, data in enumerate(datas.iloc):
+            if index == 0:
+                for d in data:
+                    if not pd.isna(d):
+                        slots.append({"key": slotCount, "text": d})
+                        slotCount += 1
+            else:
+                for ind, d in enumerate(data):
+                    if ind == 0:
+                        if not pd.isna(d):
+                            people.append({"key": personCount, "text": d})
+                            planning[str(personCount)] = {}
+                    else:
+                        if not pd.isna(d):
+                            if d == 'Oui':
+                                planning[str(personCount)][str(ind - 1)] = None
+                personCount += 1
+        return JsonResponse({'slots': slots, 'people': people, 'planning': planning})
+    except:
+        return HttpResponse(status=400)
 
 @api_view(['POST'])
 def generate(request):

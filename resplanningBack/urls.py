@@ -20,5 +20,6 @@ from . import views
 
 urlpatterns = [
     path('', views.getDoc),
+    path('parse-csv/', views.parseCsv),
     path('generate/', views.generate)
 ]
