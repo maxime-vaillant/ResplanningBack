@@ -60,10 +60,13 @@ class Planer:
         elif method == 'at_most':
             self.__add_at_most(vars, params)
 
-    def __create_rule_on_cell_available(self, person_id: int, slot_id: int):
+    def __create_rule_on_cell_available(self, person_id: int, slot_id: int, on_call_times_concerned: List[str]):
         vars = []
         for on_call_time_id in self.__on_call_times_id:
-            vars.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
+            if str(on_call_time_id) in on_call_times_concerned:
+                vars.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
+            else:
+                self.__solver.add_clause([-self.__cell_to_variable(person_id, slot_id, on_call_time_id)])
         self.__add_exact(vars, 1)
 
     def __create_rule_on_cell_unavailable(self, person_id: int, slot_id: int):
@@ -94,10 +97,17 @@ class Planer:
 
     def __add_rules_on_cell_by_slot(self):
         for slot_id in self.__slots_id:
+            on_call_times_concerned = ["0"]
+            for rule in self.__rules_by_slot:
+                if slot_id in rule['slots']:
+                    for on_call_time in rule['on_call_times']:
+                        if on_call_time not in on_call_times_concerned:
+                            on_call_times_concerned.append(on_call_time)
+            print(slot_id, on_call_times_concerned)
             self.__clear_rule_vars(self.__rules_by_slot)
             for person_id in self.__people_id:
-                if str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
-                    self.__create_rule_on_cell_available(person_id, slot_id)
+                if len(on_call_times_concerned) > 0 and str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
+                    self.__create_rule_on_cell_available(person_id, slot_id, on_call_times_concerned)
                 else:
                     self.__create_rule_on_cell_unavailable(person_id, slot_id)
                 for rule in self.__rules_by_slot:
@@ -136,16 +146,49 @@ class Planer:
                 self.__planning[str(person_id)][str(slot_id)] = on_call_time_id
         return self.__planning
 
-    def __evaluate_model(self):
-        # TODO
-        return
+    @staticmethod
+    def __variance(list_var):
+        avg = sum(list_var) / len(list_var)
+        tot = 0
+        for elem in list_var:
+            tot += (elem - avg) ** 2
+        return tot / (len(list_var) - 1)
+
+    def __evaluate_model(self, model):
+        model_counter = {}
+        for on_call_time_id in self.__on_call_times_id:
+            model_counter[str(on_call_time_id)] = {}
+            for person_id in self.__people_id:
+                model_counter[str(on_call_time_id)][str(person_id)] = 0
+        for var in model:
+            if var > 0:
+                person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
+                model_counter[str(on_call_time_id)][str(person_id)] += 1
+        tot = 0
+        for on_call_time_id in self.__on_call_times_id:
+            tot += self.__variance(model_counter[str(on_call_time_id)].values())
+        return tot / len(self.__on_call_times_id)
+
+    def __find_best_model(self):
+        best_model = None
+        min_avg_variance = 1000
+        self.__solver.conf_budget(2000)
+        if self.__solver.solve_limited(expect_interrupt=True):
+            for counter, model in enumerate(self.__solver.enum_models()):
+                avg_variance = self.__evaluate_model(model)
+                if avg_variance < min_avg_variance:
+                    best_model = model
+                    min_avg_variance = avg_variance
+                    print(min_avg_variance)
+                elif counter > 15000:
+                    break
+        return best_model
 
     def generate(self):
         self.__add_rules_on_planning()
         self.__add_rules_on_cell_by_slot()
         self.__add_rules_on_cell_by_person()
-        self.__solver.conf_budget(2000)
-        if self.__solver.solve_limited(expect_interrupt=True):
-            for model in self.__solver.enum_models():
-                return self.__return_model(model)
+        best_model = self.__find_best_model()
+        if best_model:
+            return self.__return_model(best_model)
         return None

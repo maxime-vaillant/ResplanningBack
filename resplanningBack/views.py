@@ -56,13 +56,14 @@ def generate(request):
         rules_by_slot: List[dict] = helper.parse_slots(slots, people, rules_by_slot_active)
         try:
             planer = Pln.Planer(slots, people, on_call_times, old_planning, rules_by_person, rules_by_slot)
-        except:
+            print('Processing')
+            new_planning = planer.generate()
+            print(new_planning)
+            if new_planning:
+                return JsonResponse({'planning': new_planning})
+        except Exception as err:
+            print(err)
             return HttpResponse(status=409)
-        print('Processing')
-        new_planning = planer.generate()
-        print(new_planning)
-        if new_planning:
-            return JsonResponse({'planning': new_planning})
         return HttpResponse(status=404)
     except:
         return HttpResponse(status=400)
