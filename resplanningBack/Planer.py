@@ -1,38 +1,94 @@
 from itertools import combinations
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, TypedDict
 from pysat.solvers import Solver
-from . import helper
+
+class RawRule(TypedDict):
+    counter: int
+    disable: bool
+    exigency: int
+    method: str
+    on_call_times: List[str]
+    param: int
+    people: List[int]
+    slots: List[int]
+
+class ParsedRule(TypedDict):
+    counter: int
+    disable: bool
+    exigency: int
+    method: str
+    on_call_times: List[List[int]]
+    param: int
+    people: List[int]
+    slots: List[int]
+    vars: List[List[int]]
 
 class Planer:
-    def __init__(self, slots: List[int], people: List[int], on_call_times: List[int], planning: dict[str: dict[str: dict]], rules_by_person: List[Dict], rules_by_slot: List[Dict]):
-        self.__slots_id = slots
-        self.__slots = helper.get_max_list_int(slots)
-        self.__people_id = people
-        self.__people = helper.get_max_list_int(people)
-        self.__on_call_times_id = on_call_times
-        self.__on_call_times = helper.get_max_list_int(on_call_times)
-        self.__rules_by_person = rules_by_person
-        self.__rules_by_slot = rules_by_slot
+    def __init__(self, slots: List[int], people: List[int], on_call_times: List[int], planning: dict[str: dict[str: dict]], rules_by_person: List[RawRule], rules_by_slot: List[RawRule]):
+        self.__slots_id: List[int] = slots
+        self.__slots_length: int = len(slots)
+
+        self.__people_id: List[int] = people
+        self.__people_length: int = len(people)
+
+        self.__on_call_times_id: List[int] = on_call_times
+        self.__on_call_times_length: int = len(on_call_times)
+
+        self.__rules_by_person = self.__parse_rules(rules_by_person)
+        self.__rules_by_slot = self.__parse_rules(rules_by_slot)
         self.__planning = planning
 
-        for rule in self.__rules_by_slot + self.__rules_by_person:
-            rule['vars'] = [[] for _ in range(len(rule['on_call_times']))]
+        print(self.__rules_by_slot)
 
         self.__solver = Solver()
 
     def __del__(self):
         self.__solver.delete()
 
+    @staticmethod
+    def __get_actual_id(solve_id: int, actual_ids: List[int]) -> int:
+        return actual_ids[solve_id]
+
+    @staticmethod
+    def __get_solver_id(actual_id: int, actual_ids: List[int]) -> int:
+        return actual_ids.index(actual_id)
+
+    @staticmethod
+    def __parse_rules(rules: List[RawRule]) -> List[ParsedRule]:
+        parsed_rule: List[ParsedRule] = []
+        for rule in rules:
+            parsed_rule.append({
+                'counter': rule['counter'],
+                'disable': rule['disable'],
+                'exigency': rule['exigency'],
+                'method': rule['method'],
+                'on_call_times': [
+                    [int(i) for i in on_call_time_str.split('+')] for on_call_time_str in rule['on_call_times']
+                ],
+                'param': rule['param'],
+                'people': rule['people'],
+                'slots': rule['slots'],
+                'vars': [[] for _ in range(len(rule['on_call_times']))]
+            })
+        return parsed_rule
+
     def __cell_to_variable(self, person_id: int, slot_id: int, on_call_time_id: int) -> int:
-        return (person_id * self.__slots + slot_id) * self.__on_call_times + on_call_time_id + 1
+        person_solver_id: int = self.__get_solver_id(person_id, self.__people_id)
+        slot_solver_id: int = self.__get_solver_id(slot_id, self.__slots_id)
+        on_call_time_solver_id: int = self.__get_solver_id(on_call_time_id, self.__on_call_times_id)
+        return (person_solver_id * self.__slots_length + slot_solver_id) * self.__on_call_times_length + on_call_time_solver_id + 1
 
     def __variable_to_cell(self, var: int) -> Tuple[int, int, int]:
         var -= 1
-        person_id, rest = var // (self.__slots * self.__on_call_times), var % (
-                    self.__slots * self.__on_call_times)
-        slot_id = rest // self.__on_call_times
-        on_call_time_id = var % self.__on_call_times
-        return person_id, slot_id, on_call_time_id
+        person_id, rest = var // (self.__slots_length * self.__on_call_times_length), var % (
+                    self.__slots_length * self.__on_call_times_length)
+        slot_id = rest // self.__on_call_times_length
+        on_call_time_id = var % self.__on_call_times_length
+        return (
+            self.__get_actual_id(person_id, self.__people_id),
+            self.__get_actual_id(slot_id, self.__slots_id),
+            self.__get_actual_id(on_call_time_id, self.__on_call_times_id)
+        )
 
     def __add_at_least(self, vars: List[int], param: int):
         for combination in combinations(vars, len(vars) - param + 1):
@@ -60,10 +116,10 @@ class Planer:
         elif method == 'at_most':
             self.__add_at_most(vars, params)
 
-    def __create_rule_on_cell_available(self, person_id: int, slot_id: int, on_call_times_concerned: List[str]):
+    def __create_rule_on_cell_available(self, person_id: int, slot_id: int, on_call_times_concerned: List[List[int]]):
         vars = []
         for on_call_time_id in self.__on_call_times_id:
-            if str(on_call_time_id) in on_call_times_concerned:
+            if [on_call_time_id] in on_call_times_concerned:
                 vars.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
             else:
                 self.__solver.add_clause([-self.__cell_to_variable(person_id, slot_id, on_call_time_id)])
@@ -80,14 +136,13 @@ class Planer:
                 vars.clear()
 
     def __add_rule(self, rule, person_id, slot_id):
-        for rule_index, on_call_time_str in enumerate(rule['on_call_times']):
-            on_call_time_ids = on_call_time_str.split('+')
+        for rule_index, on_call_time_ids in enumerate(rule['on_call_times']):
             for on_call_time_id in on_call_time_ids:
                 rule['vars'][rule_index].append(
                     self.__cell_to_variable(
                         person_id,
                         slot_id,
-                        int(on_call_time_id)
+                        on_call_time_id
                     )
                 )
             if len(rule['vars'][rule_index]) == rule['counter'] * len(on_call_time_ids):
@@ -97,7 +152,7 @@ class Planer:
 
     def __add_rules_on_cell_by_slot(self):
         for slot_id in self.__slots_id:
-            on_call_times_concerned = ["0"]
+            on_call_times_concerned = [[0]]
             for rule in self.__rules_by_slot:
                 if slot_id in rule['slots']:
                     for on_call_time in rule['on_call_times']:
@@ -106,7 +161,7 @@ class Planer:
             print(slot_id, on_call_times_concerned)
             self.__clear_rule_vars(self.__rules_by_slot)
             for person_id in self.__people_id:
-                if len(on_call_times_concerned) > 0 and str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
+                if str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
                     self.__create_rule_on_cell_available(person_id, slot_id, on_call_times_concerned)
                 else:
                     self.__create_rule_on_cell_unavailable(person_id, slot_id)
@@ -147,9 +202,9 @@ class Planer:
         return self.__planning
 
     @staticmethod
-    def __variance(list_var):
-        avg = sum(list_var) / len(list_var)
-        tot = 0
+    def __variance(list_var) -> float:
+        avg: float = sum(list_var) / len(list_var)
+        tot: int = 0
         for elem in list_var:
             tot += (elem - avg) ** 2
         return tot / (len(list_var) - 1)
@@ -174,13 +229,16 @@ class Planer:
         min_avg_variance = 1000
         self.__solver.conf_budget(2000)
         if self.__solver.solve_limited(expect_interrupt=True):
+            current_count = 0
             for counter, model in enumerate(self.__solver.enum_models()):
+                current_count += 1
                 avg_variance = self.__evaluate_model(model)
                 if avg_variance < min_avg_variance:
+                    current_count = 0
                     best_model = model
                     min_avg_variance = avg_variance
                     print(min_avg_variance)
-                elif counter > 15000:
+                elif counter > 15000 and current_count > 2000:
                     break
         return best_model
 
