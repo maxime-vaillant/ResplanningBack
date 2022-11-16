@@ -1,3 +1,12 @@
+# Virtualenv
+
 venv
+
+# Config
+
+settings.py
+
+# Misc
+
 .idea
-resplanningBack/settings.py
+.DS_Store
