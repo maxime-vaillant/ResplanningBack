@@ -1,6 +1,9 @@
 from itertools import combinations
-from typing import List, Tuple, Dict, TypedDict
 from pysat.solvers import Solver
+from typing import List, Tuple, Dict, TypedDict, Optional
+
+Planning = Dict[str, Dict[str, Optional[int]]]
+
 
 class RawRule(TypedDict):
     counter: int
@@ -11,6 +14,7 @@ class RawRule(TypedDict):
     param: int
     people: List[int]
     slots: List[int]
+
 
 class ParsedRule(TypedDict):
     counter: int
@@ -23,22 +27,29 @@ class ParsedRule(TypedDict):
     slots: List[int]
     vars: List[List[int]]
 
+
 class Planer:
-    def __init__(self, slots: List[int], people: List[int], on_call_times: List[int], planning: dict[str: dict[str: dict]], rules_by_person: List[RawRule], rules_by_slot: List[RawRule]):
+    def __init__(
+            self,
+            slots: List[int],
+            people: List[int],
+            on_call_times: List[int],
+            planning: dict[str: dict[str: dict]],
+            rules_by_person: List[RawRule],
+            rules_by_slot: List[RawRule]
+    ):
         self.__slots_id: List[int] = slots
         self.__slots_length: int = len(slots)
 
         self.__people_id: List[int] = people
-        self.__people_length: int = len(people)
+        # self.__people_length: int = len(people)
 
         self.__on_call_times_id: List[int] = on_call_times
         self.__on_call_times_length: int = len(on_call_times)
 
         self.__rules_by_person = self.__parse_rules(rules_by_person)
         self.__rules_by_slot = self.__parse_rules(rules_by_slot)
-        self.__planning = planning
-
-        print(self.__rules_by_slot)
+        self.__planning: Planning = planning
 
         self.__solver = Solver()
 
@@ -90,40 +101,40 @@ class Planer:
             self.__get_actual_id(on_call_time_id, self.__on_call_times_id)
         )
 
-    def __add_at_least(self, vars: List[int], param: int):
-        for combination in combinations(vars, len(vars) - param + 1):
+    def __add_at_least(self, variables: List[int], param: int):
+        for combination in combinations(variables, len(variables) - param + 1):
             clause = []
-            for c in combination:
-                clause.append(c)
+            for clause_element in combination:
+                clause.append(clause_element)
             self.__solver.add_clause(clause)
 
-    def __add_at_most(self, vars: List[int], param: int):
-        for combination in combinations([-x for x in vars[:]], param + 1):
+    def __add_at_most(self, variables: List[int], param: int):
+        for combination in combinations([-x for x in variables[:]], param + 1):
             clause = []
-            for c in combination:
-                clause.append(c)
+            for clause_element in combination:
+                clause.append(clause_element)
             self.__solver.add_clause(clause)
 
-    def __add_exact(self, vars: List[int], param: int):
-        self.__add_at_least(vars, param)
-        self.__add_at_most(vars, param)
+    def __add_exact(self, variables: List[int], param: int):
+        self.__add_at_least(variables, param)
+        self.__add_at_most(variables, param)
 
-    def __add_clause(self, method: str, vars: List[int], params: int):
+    def __add_clause(self, method: str, variables: List[int], params: int):
         if method == 'exact':
-            self.__add_exact(vars, params)
+            self.__add_exact(variables, params)
         elif method == 'at_least':
-            self.__add_at_least(vars, params)
+            self.__add_at_least(variables, params)
         elif method == 'at_most':
-            self.__add_at_most(vars, params)
+            self.__add_at_most(variables, params)
 
     def __create_rule_on_cell_available(self, person_id: int, slot_id: int, on_call_times_concerned: List[List[int]]):
-        vars = []
+        variables = []
         for on_call_time_id in self.__on_call_times_id:
             if [on_call_time_id] in on_call_times_concerned:
-                vars.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
+                variables.append(self.__cell_to_variable(person_id, slot_id, on_call_time_id))
             else:
                 self.__solver.add_clause([-self.__cell_to_variable(person_id, slot_id, on_call_time_id)])
-        self.__add_exact(vars, 1)
+        self.__add_exact(variables, 1)
 
     def __create_rule_on_cell_unavailable(self, person_id: int, slot_id: int):
         for on_call_time_id in self.__on_call_times_id:
@@ -132,8 +143,8 @@ class Planer:
     @staticmethod
     def __clear_rule_vars(rules):
         for rule in rules:
-            for vars in rule['vars']:
-                vars.clear()
+            for variables in rule['vars']:
+                variables.clear()
 
     def __add_rule(self, rule, person_id, slot_id):
         for rule_index, on_call_time_ids in enumerate(rule['on_call_times']):
@@ -158,7 +169,7 @@ class Planer:
                     for on_call_time in rule['on_call_times']:
                         if on_call_time not in on_call_times_concerned:
                             on_call_times_concerned.append(on_call_time)
-            print(slot_id, on_call_times_concerned)
+            # print(slot_id, on_call_times_concerned)
             self.__clear_rule_vars(self.__rules_by_slot)
             for person_id in self.__people_id:
                 if str(person_id) in self.__planning and str(slot_id) in self.__planning[str(person_id)]:
@@ -187,12 +198,13 @@ class Planer:
                 if on_call_time_key is not None:
                     self.__solver.add_clause([self.__cell_to_variable(person_id, slot_id, on_call_time_key)])
 
-    def __print_model(self, model):
-        for var in model:
-            if var > 0:
-                person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
-                print(person_id, slot_id, on_call_time_id)
-        print()
+    # def __print_model(self, model):
+    #     for var in model:
+    #         if var > 0:
+    #             person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
+    #             print(person_id, slot_id, on_call_time_id)
+    #
+    # print()
 
     def __return_model(self, model):
         for var in model:
@@ -217,7 +229,7 @@ class Planer:
                 model_counter[str(on_call_time_id)][str(person_id)] = 0
         for var in model:
             if var > 0:
-                person_id, slot_id, on_call_time_id = self.__variable_to_cell(var)
+                person_id, _, on_call_time_id = self.__variable_to_cell(var)
                 model_counter[str(on_call_time_id)][str(person_id)] += 1
         tot = 0
         for on_call_time_id in self.__on_call_times_id:
@@ -237,15 +249,19 @@ class Planer:
                     current_count = 0
                     best_model = model
                     min_avg_variance = avg_variance
-                    print(min_avg_variance)
+                    # print(min_avg_variance)
                 elif counter > 15000 and current_count > 2000:
                     break
         return best_model
 
     def generate(self):
+        print("Add rules on planning...")
         self.__add_rules_on_planning()
+        print("Add rules by slot...")
         self.__add_rules_on_cell_by_slot()
+        print("Add rules by person...")
         self.__add_rules_on_cell_by_person()
+        print("Finding best model...")
         best_model = self.__find_best_model()
         if best_model:
             return self.__return_model(best_model)

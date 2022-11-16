@@ -1,5 +1,6 @@
 from typing import List
 
+
 def parse_people(slots: List[int], people: List[int], rules_by_person: List[dict]) -> List[dict]:
     for rule in rules_by_person:
         if rule['counter'] == -1 and rule['slots'] and rule['slots'][0] == -1:
@@ -11,6 +12,7 @@ def parse_people(slots: List[int], people: List[int], rules_by_person: List[dict
         if rule['slots'] and rule['slots'][0] == -1:
             rule['slots'] = slots
     return rules_by_person
+
 
 def parse_slots(slots: List[int], people: List[int], rules_by_slot: List[dict]) -> List[dict]:
     for rule in rules_by_slot:
@@ -24,8 +26,8 @@ def parse_slots(slots: List[int], people: List[int], rules_by_slot: List[dict]) 
             rule['slots'] = slots
     return rules_by_slot
 
-def get_max_list_int(id_list: List[int]):
+
+def get_max_list_int(id_list: List[int]) -> int:
     if len(id_list) == 0:
         return 0
-    else:
-        return max(id_list) + 1
+    return max(id_list) + 1
